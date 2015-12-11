@@ -1,23 +1,5 @@
 package checkmate
 
-// Position is a square in the board
-type Position struct {
-	X, Y int
-}
-
-// Distance returns the absolute distance from another position
-func (p Position) Distance(o Position) (int, int) {
-	dX := p.X - o.X
-	if dX < 0 {
-		dX = -dX
-	}
-	dY := p.Y - o.Y
-	if dY < 0 {
-		dY = -dY
-	}
-	return dX, dY
-}
-
 // Piece is a chess piece type
 type Piece int
 
@@ -60,4 +42,23 @@ func (p Piece) Menaces(self, other Position) bool {
 		return menaces["orthogonal"](dX, dY) || menaces["diagonal"](dX, dY)
 	}
 	return false
+}
+
+// Split divides the positions in menaced, and not menaced
+func (p Piece) Split(self Position, others []Position) (safe, unsafe []Position) {
+	safe, unsafe = make([]Position, 0, len(others)), make([]Position, 0, len(others))
+	for _, o := range others {
+		if p.Menaces(self, o) {
+			unsafe = append(unsafe, o)
+		} else {
+			safe = append(safe, o)
+		}
+	}
+	if len(safe) == 0 {
+		safe = nil
+	}
+	if len(unsafe) == 0 {
+		unsafe = nil
+	}
+	return safe, unsafe
 }

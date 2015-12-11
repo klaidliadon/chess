@@ -4,6 +4,17 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+func (s *CheckmateSuite) TestBefore(c *C) {
+	var cases = map[[4]int]bool{
+		{0, 0, 0, 1}: true, {0, 2, 0, 1}: false, {1, 1, 0, 1}: false, {0, 1, 1, 1}: true,
+	}
+	for coord, result := range cases {
+		mine, their := Position{coord[0], coord[1]}, Position{coord[2], coord[3]}
+		c.Assert(mine.Before(their), Equals, result)
+	}
+
+}
+
 func (s *CheckmateSuite) TestPieces(c *C) {
 	var cases = map[Piece]map[[4]int]bool{
 		Piece(0): {
@@ -34,14 +45,30 @@ func (s *CheckmateSuite) TestPieces(c *C) {
 		},
 	}
 	for piece, list := range cases {
+		var splitChecker = make(map[Position]struct {
+			safe, unsafe []Position
+		})
 		for coord, menace := range list {
 			var action = "should"
 			if !menace {
 				action += "n't"
 			}
 			mine, their := Position{coord[0], coord[1]}, Position{coord[2], coord[3]}
+			v := splitChecker[mine]
+			if menace {
+				v.unsafe = append(v.unsafe, their)
+			} else {
+				v.safe = append(v.safe, their)
+
+			}
+			splitChecker[mine] = v
 			c.Logf("%s in %v %s menace %v", piece, mine, action, their)
 			c.Assert(piece.Menaces(mine, their), Equals, menace)
+		}
+		for mine, theirs := range splitChecker {
+			safe, unsafe := piece.Split(mine, append(theirs.safe, theirs.unsafe...))
+			c.Assert(safe, DeepEquals, theirs.safe)
+			c.Assert(unsafe, DeepEquals, theirs.unsafe)
 		}
 	}
 

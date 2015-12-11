@@ -28,7 +28,7 @@ func NewBoard(w, h int) Board {
 type Board struct {
 	Size
 	Squares    map[Position]Piece
-	placements []Position
+	placements positionList
 }
 
 // Place puts a piece in a square
@@ -37,18 +37,24 @@ func (b *Board) Place(piece Piece, pos Position) {
 		panic(errInvalid)
 	}
 	b.Squares[pos] = piece
-	b.placements = append(b.placements, pos)
+	b.placements.Push(pos)
 }
 
 // RemoveLast pops the last piece placed, panics if there are no pieces
 func (b *Board) RemoveLast() (piece Piece, pos Position) {
-	count := len(b.placements)
-	if count == 0 {
+	if len(b.placements) == 0 {
 		panic(errEmpty)
 	}
-	pos = b.placements[count-1]
+	pos = b.placements.Pop()
 	piece = b.Squares[pos]
 	delete(b.Squares, pos)
-	b.placements = b.placements[:count-1]
 	return
+}
+
+func (b *Board) Combination() []Placement {
+	var result = make([]Placement, len(b.placements))
+	for i, pos := range b.placements {
+		result[i] = Placement{Piece: b.Squares[pos], Position: pos}
+	}
+	return result
 }
