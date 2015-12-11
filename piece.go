@@ -1,11 +1,5 @@
 package checkmate
 
-// Size is the dimensions of a board
-type Size struct {
-	Width  int
-	Height int
-}
-
 // Position is a square in the board
 type Position struct {
 	X, Y int
