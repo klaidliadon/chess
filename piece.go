@@ -15,31 +15,52 @@ const (
 	Queen
 )
 
-var menaces = map[string]func(int, int) bool{
-	"same":       func(dX, dY int) bool { return dX == 0 && dY == 0 },
-	"adjacent":   func(dX, dY int) bool { return dX < 2 && dY < 2 },
-	"special":    func(dX, dY int) bool { return dX == 1 && dY == 2 || dX == 2 && dY == 1 },
-	"diagonal":   func(dX, dY int) bool { return dX == dY },
-	"orthogonal": func(dX, dY int) bool { return dX == 0 || dY == 0 },
+var menaces = map[string]canMove{
+	"same":       func(x, y int) bool { return x == 0 && y == 0 },
+	"adjacent":   func(x, y int) bool { return x < 2 && y < 2 },
+	"special":    func(x, y int) bool { return x == 1 && y == 2 || x == 2 && y == 1 },
+	"diagonal":   func(x, y int) bool { return x == y },
+	"orthogonal": func(x, y int) bool { return x == 0 || y == 0 },
 }
 
-// Menaces tells if the piece is menacing a position
-func (p Piece) Menaces(self, other Position) bool {
-	dX, dY := self.Distance(other)
-	if menaces["same"](dX, dY) {
-		return true
+func (p Piece) Simbol() string {
+	switch p {
+	case King:
+		return "♚"
+	case Queen:
+		return "♛"
+	case Rook:
+		return "♜"
+	case Bishop:
+		return "♝"
+	case Knight:
+		return "♞"
 	}
+	return "?"
+}
+
+// Menaces tells if the piece is menacing any of the positions
+func (p Piece) Menaces(self Position, other ...Position) bool {
+	var moves = []string{"same"}
 	switch p {
 	case Knight:
-		return menaces["special"](dX, dY)
+		moves = append(moves, "special")
 	case King:
-		return menaces["adjacent"](dX, dY)
+		moves = append(moves, "adjacent")
 	case Bishop:
-		return menaces["diagonal"](dX, dY)
+		moves = append(moves, "diagonal")
 	case Rook:
-		return menaces["orthogonal"](dX, dY)
+		moves = append(moves, "orthogonal")
 	case Queen:
-		return menaces["orthogonal"](dX, dY) || menaces["diagonal"](dX, dY)
+		moves = append(moves, "orthogonal", "diagonal")
+	}
+	for _, o := range other {
+		x, y := self.Distance(o)
+		for _, s := range moves {
+			if menaces[s](x, y) {
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -53,12 +74,6 @@ func (p Piece) Split(self Position, others []Position) (safe, unsafe []Position)
 		} else {
 			safe = append(safe, o)
 		}
-	}
-	if len(safe) == 0 {
-		safe = nil
-	}
-	if len(unsafe) == 0 {
-		unsafe = nil
 	}
 	return safe, unsafe
 }

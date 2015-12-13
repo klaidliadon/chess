@@ -1,86 +1,147 @@
 package checkmate
 
-func newState(w, h int, count map[Piece]int) *state {
-	sq := make([]Position, 0, w*h)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			sq = append(sq, Position{x, y})
-		}
-	}
-	var ps = make([]Piece, 0, len(count))
-	for p, n := range count {
-		for i := 0; i < n; i++ {
-			ps = append(ps, p)
-		}
-	}
-	b := NewBoard(w, h)
-	return &state{Board: &b, Squares: sq, Pieces: ps}
+import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"os"
+
+	"github.com/fatih/color"
+)
+
+type commonState struct {
+	Board  *Board
+	Pieces []Piece
+	Length int
+	Result chan []Placement
 }
 
-type state struct {
-	previous *state
-	Board    *Board
-	Squares  []Position
-	Pieces   []Piece
-	Index    int
+type State struct {
+	common      commonState
+	previous    *State
+	squares     []Position
+	piecesIndex int
+	squareIndex int
 }
 
-func (s *state) Next() *state {
-	if len(s.Pieces) == 0 {
-		return s.Previous()
+func (s State) String() string {
+	var cache = make(map[Position]string, s.common.Board.SquareCount()-len(s.common.Board.placements)-len(s.squares))
+	for _, p := range s.common.Board.placements {
+		cache[p.Position] = p.Piece.Simbol()
 	}
-	piece := s.Pieces[0]
-loop:
-	for s.Index < len(s.Squares) {
-		pos := s.Squares[s.Index]
-		if _, ok := s.Board.Squares[pos]; ok {
-			s.Index++
+
+	b := bytes.NewBuffer(nil)
+	fmt.Fprintln(b, s.Combination())
+	for y := 0; y < s.common.Board.Height; y++ {
+		for x := 0; x < s.common.Board.Width; x++ {
+			var s = "☐"
+			if v, ok := cache[Position{x, y}]; ok {
+				s = v
+			}
+			fmt.Fprintf(b, "%1s", s)
+		}
+		b.WriteRune('\n')
+	}
+	r := b.String()
+	if s.IsComplete() {
+		r = color.GreenString(r)
+	}
+	return r
+}
+
+func (s *State) ValidIndex() bool         { return s.squareIndex < len(s.squares) }
+func (s *State) IsFirst() bool            { return s.piecesIndex == 0 }
+func (s *State) IsLast() bool             { return s.piecesIndex+1 >= s.common.Length }
+func (s *State) IsComplete() bool         { return s.piecesIndex == s.common.Length }
+func (s *State) Piece() Piece             { return s.common.Pieces[s.piecesIndex] }
+func (s *State) PrevPiece() Piece         { return s.common.Pieces[s.piecesIndex-1] }
+func (s *State) NextPiece() Piece         { return s.common.Pieces[s.piecesIndex+1] }
+func (s *State) Position() Position       { return s.squares[s.squareIndex] }
+func (s *State) Placement() Placement     { return Placement{Piece: s.Piece(), Position: s.Position()} }
+func (s *State) Combination() []Placement { return s.common.Board.Combination() }
+
+func (s *State) RemoveSquare(p Position) {
+	var index = -1
+	for i, v := range s.squares {
+		if v != p {
 			continue
 		}
-		for _, p := range s.Board.placements {
-			if piece.Menaces(pos, p) {
-				s.Index++
-				continue loop
-			}
+		index = i
+		break
+	}
+	if index == -1 {
+		return
+	}
+	s.squares = append(s.squares[:index], s.squares[index+1:]...)
+}
+
+func (s *State) Invalid() bool {
+	return !s.common.Board.Free(s.Position()) ||
+		s.Placement().Menaces(s.common.Board.placements...)
+}
+
+func (s *State) AddCurrent() {
+	s.common.Board.Place(s.Placement())
+}
+
+func (s *State) RemoveLast() Placement {
+	return s.common.Board.RemoveLast()
+}
+
+func (s *State) Next() *State {
+	if s.IsComplete() {
+		s.common.Result <- s.common.Board.Combination()
+		return s.Previous()
+	}
+	if !s.IsFirst() && s.Piece() == s.PrevPiece() {
+		prev := s.previous.Position()
+		for s.ValidIndex() && s.Position().Before(prev) {
+			s.squareIndex++
 		}
-		s.Board.Place(piece, pos)
-		safe, _ := piece.Split(pos, s.Squares)
-		var index int
-		if s.previous != nil && s.previous.Pieces[0] == piece {
-			for i, v := range safe {
-				if pos.Before(v) {
-					index = i
-					break
-				}
-			}
+	}
+	for s.squareIndex < len(s.squares) {
+		p := s.Placement()
+		if s.Invalid() {
+			s.squareIndex++
+			continue
 		}
-		return &state{
-			previous: s,
-			Board:    s.Board,
-			Squares:  safe,
-			Pieces:   s.Pieces[1:],
-			Index:    index,
+		s.AddCurrent()
+		safe, _ := p.Split(s.squares)
+		return &State{
+			common:      s.common,
+			previous:    s,
+			squares:     safe,
+			piecesIndex: s.piecesIndex + 1,
 		}
 	}
 	return s.Previous()
 }
 
-func (s *state) Previous() *state {
+func (s *State) Previous() *State {
 	if s.previous == nil {
 		return nil
 	}
-	s.Board.RemoveLast()
-	s.previous.Index++
+	s.RemoveLast()
+	s.previous.squareIndex++
 	return s.previous
 }
 
-func Solve(w, h int, count map[Piece]int) <-chan []Placement {
+//
+func Solve(w, h int, count map[Piece]int, debug bool) <-chan []Placement {
 	ch := make(chan []Placement)
+	reader := bufio.NewReader(os.Stdin)
 	go func() {
 		defer close(ch)
-		for s := newState(w, h, count); s != nil; s = s.Next() {
-			if len(s.Pieces) == 0 {
-				ch <- s.Board.Combination()
+		l := PieceList(count)
+		s := &State{common: commonState{
+			Board: NewBoard(w, h), Pieces: l, Result: ch, Length: len(l),
+		}}
+		s.squares = s.common.Board.Positions()
+		for s != nil {
+			s = s.Next()
+			if debug {
+				fmt.Println(s)
+				reader.ReadString('\n')
 			}
 		}
 	}()

@@ -19,7 +19,7 @@ func (s *CheckmateSuite) TestContains(c *C) {
 func (s *CheckmateSuite) TestPlace(c *C) {
 	b := NewBoard(6, 7)
 	c.Assert(func() { b.RemoveLast() }, Panics, errEmpty)
-	c.Assert(func() { b.Place(Queen, Position{7, 7}) }, Panics, errInvalid)
+	c.Assert(func() { b.Place(Placement{Piece: Queen, Position: Position{7, 7}}) }, Panics, errInvalid)
 
 	var (
 		pos   Position
@@ -28,21 +28,20 @@ func (s *CheckmateSuite) TestPlace(c *C) {
 	)
 
 	pos, piece, i = Position{5, 6}, Queen, i+1
-	b.Place(piece, pos)
-	c.Assert(b.Squares, HasLen, i)
+	b.Place(Placement{Piece: piece, Position: pos})
 	c.Assert(b.placements, HasLen, i)
-	c.Assert(b.Squares[pos], Equals, piece)
+	c.Assert(b.placements[i-1].Piece, Equals, piece)
+	c.Assert(b.placements[i-1].Position, Equals, pos)
 
 	pos, piece, i = Position{4, 6}, Bishop, i+1
-	b.Place(piece, pos)
-	c.Assert(b.Squares, HasLen, i)
+	b.Place(Placement{Piece: piece, Position: pos})
 	c.Assert(b.placements, HasLen, i)
-	c.Assert(b.Squares[pos], Equals, piece)
+	c.Assert(b.placements[i-1].Piece, Equals, piece)
+	c.Assert(b.placements[i-1].Position, Equals, pos)
 
-	lastPiece, lastPos := b.RemoveLast()
-	c.Assert(b.Squares, HasLen, i-1)
+	last := b.RemoveLast()
 	c.Assert(b.placements, HasLen, i-1)
-	c.Assert(lastPos, Equals, pos)
-	c.Assert(lastPiece, Equals, piece)
+	c.Assert(last.Position, Equals, pos)
+	c.Assert(last.Piece, Equals, piece)
 
 }

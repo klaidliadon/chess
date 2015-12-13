@@ -1,18 +1,22 @@
 package checkmate
 
-import (
-	. "gopkg.in/check.v1"
-)
+import . "gopkg.in/check.v1"
 
 func (s *CheckmateSuite) TestBefore(c *C) {
 	var cases = map[[4]int]bool{
 		{0, 0, 0, 1}: true, {0, 2, 0, 1}: false, {1, 1, 0, 1}: false, {0, 1, 1, 1}: true,
+		{0, 1, 2, 0}: false,
 	}
 	for coord, result := range cases {
 		mine, their := Position{coord[0], coord[1]}, Position{coord[2], coord[3]}
+		sign := "<"
+		if !result {
+			sign = ">"
+		}
 		c.Assert(mine.Before(their), Equals, result)
+		c.Assert(their.Before(mine), Equals, !result)
+		c.Log(mine, sign, their)
 	}
-
 }
 
 func (s *CheckmateSuite) TestPieces(c *C) {
@@ -49,9 +53,9 @@ func (s *CheckmateSuite) TestPieces(c *C) {
 			safe, unsafe []Position
 		})
 		for coord, menace := range list {
-			var action = "should"
+			var r = "✗"
 			if !menace {
-				action += "n't"
+				r = "✓"
 			}
 			mine, their := Position{coord[0], coord[1]}, Position{coord[2], coord[3]}
 			v := splitChecker[mine]
@@ -62,13 +66,19 @@ func (s *CheckmateSuite) TestPieces(c *C) {
 
 			}
 			splitChecker[mine] = v
-			c.Logf("%s in %v %s menace %v", piece, mine, action, their)
+			c.Logf("%v %v - %v %s", piece.Simbol(), mine, their, r)
 			c.Assert(piece.Menaces(mine, their), Equals, menace)
 		}
 		for mine, theirs := range splitChecker {
 			safe, unsafe := piece.Split(mine, append(theirs.safe, theirs.unsafe...))
-			c.Assert(safe, DeepEquals, theirs.safe)
-			c.Assert(unsafe, DeepEquals, theirs.unsafe)
+			c.Assert(safe, HasLen, len(theirs.safe))
+			c.Assert(unsafe, HasLen, len(theirs.unsafe))
+			if len(safe) > 0 {
+				c.Assert(safe, DeepEquals, theirs.safe)
+			}
+			if len(unsafe) > 0 {
+				c.Assert(unsafe, DeepEquals, theirs.unsafe)
+			}
 		}
 	}
 

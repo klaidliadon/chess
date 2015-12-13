@@ -1,6 +1,7 @@
 package checkmate
 
-import "fmt"
+// canMove use the delta in x and y axis and return reachability
+type canMove func(int, int) bool
 
 // Position is a square in the board
 type Position struct {
@@ -21,31 +22,15 @@ func (p Position) Distance(o Position) (int, int) {
 }
 
 func (p Position) Before(o Position) bool {
-	return p.Y < o.Y || p.Y == o.Y && p.X < o.Y
+	return p.Y < o.Y || p.Y == o.Y && p.X < o.X
 }
 
-type positionList []Position
-
-func (p *positionList) Push(pos Position) {
-	*p = append(*p, pos)
-}
-
-func (p *positionList) Pop() Position {
-	count := len(*p)
-	pos := (*p)[count-1]
-	*p = (*p)[:count-1]
-	return pos
-}
-
-type Placement struct {
-	Piece
-	Position
-}
-
-func (p Placement) Menaces(o Placement) bool {
-	return p.Piece.Menaces(p.Position, o.Position)
-}
-
-func (p Placement) String() string {
-	return fmt.Sprintf("%s %v", p.Piece, p.Position)
+func PieceList(count map[Piece]int) []Piece {
+	var ps = make([]Piece, 0, len(count))
+	for p, n := range count {
+		for i := 0; i < n; i++ {
+			ps = append(ps, p)
+		}
+	}
+	return ps
 }
