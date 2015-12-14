@@ -6,26 +6,26 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	. "github.com/klaidliadon/chess"
+	"github.com/klaidliadon/chess"
 )
 
-type commonState struct {
-	Board  *Board
-	Pieces []Piece
+type common struct {
+	Board  *chess.Board
+	Pieces []chess.Piece
 	Length int
-	Result chan []Placement
+	Result chan []chess.Placement
 }
 
 type State struct {
-	common      commonState
+	common
 	previous    *State
-	squares     []Position
+	squares     []chess.Position
 	piecesIndex int
 	squareIndex int
 }
 
 func (s State) String() string {
-	r := s.common.Board.String()
+	r := s.Board.String()
 	if s.IsComplete() {
 		r = color.GreenString(r)
 	}
@@ -34,16 +34,17 @@ func (s State) String() string {
 
 func (s *State) ValidIndex() bool         { return s.squareIndex < len(s.squares) }
 func (s *State) IsFirst() bool            { return s.piecesIndex == 0 }
-func (s *State) IsLast() bool             { return s.piecesIndex+1 >= s.common.Length }
-func (s *State) IsComplete() bool         { return s.piecesIndex == s.common.Length }
-func (s *State) Piece() Piece             { return s.common.Pieces[s.piecesIndex] }
-func (s *State) PrevPiece() Piece         { return s.common.Pieces[s.piecesIndex-1] }
-func (s *State) NextPiece() Piece         { return s.common.Pieces[s.piecesIndex+1] }
-func (s *State) Position() Position       { return s.squares[s.squareIndex] }
-func (s *State) Placement() Placement     { return Placement{Piece: s.Piece(), Position: s.Position()} }
-func (s *State) Combination() []Placement { return s.common.Board.Combination() }
+func (s *State) IsComplete() bool         { return s.piecesIndex == s.Length }
+func (s *State) Piece() chess.Piece       { return s.Pieces[s.piecesIndex] }
+func (s *State) PrevPiece() chess.Piece   { return s.Pieces[s.piecesIndex-1] }
+func (s *State) NextPiece() chess.Piece   { return s.Pieces[s.piecesIndex+1] }
+func (s *State) Position() chess.Position { return s.squares[s.squareIndex] }
 
-func (s *State) RemoveSquare(p Position) {
+func (s *State) Placement() chess.Placement {
+	return chess.Placement{Piece: s.Piece(), Position: s.Position()}
+}
+
+func (s *State) RemoveSquare(p chess.Position) {
 	var index = -1
 	for i, v := range s.squares {
 		if v != p {
@@ -59,21 +60,12 @@ func (s *State) RemoveSquare(p Position) {
 }
 
 func (s *State) Invalid() bool {
-	return !s.common.Board.Free(s.Position()) ||
-		s.common.Board.IsSafe(s.Placement())
-}
-
-func (s *State) AddCurrent() {
-	s.common.Board.Place(s.Placement())
-}
-
-func (s *State) RemoveLast() Placement {
-	return s.common.Board.RemoveLast()
+	return !s.Board.Free(s.Position()) || s.Board.IsSafe(s.Placement())
 }
 
 func (s *State) Next() *State {
 	if s.IsComplete() {
-		s.common.Result <- s.common.Board.Combination()
+		s.Result <- s.Board.Combination()
 		return s.Previous()
 	}
 	if !s.IsFirst() && s.Piece() == s.PrevPiece() {
@@ -88,7 +80,7 @@ func (s *State) Next() *State {
 			s.squareIndex++
 			continue
 		}
-		s.AddCurrent()
+		s.Board.Place(p)
 		safe, _ := p.Split(s.squares)
 		return &State{
 			common:      s.common,
@@ -104,22 +96,24 @@ func (s *State) Previous() *State {
 	if s.previous == nil {
 		return nil
 	}
-	s.RemoveLast()
+	s.Board.RemoveLast()
 	s.previous.squareIndex++
 	return s.previous
 }
 
-//
-func Solve(w, h int, count map[Piece]int, debug bool) <-chan []Placement {
-	ch := make(chan []Placement)
+func Solve(w, h int, count map[chess.Piece]int, debug bool) <-chan []chess.Placement {
+	ch := make(chan []chess.Placement)
 	reader := bufio.NewReader(os.Stdin)
 	go func() {
 		defer close(ch)
-		l := PieceList(count)
-		s := &State{common: commonState{
-			Board: NewBoard(w, h), Pieces: l, Result: ch, Length: len(l),
+		l := piecelist(count)
+		s := &State{common: common{
+			Board:  chess.NewBoard(w, h),
+			Pieces: l,
+			Result: ch,
+			Length: len(l),
 		}}
-		s.squares = s.common.Board.Positions()
+		s.squares = s.Board.Positions()
 		for s != nil {
 			s = s.Next()
 			if debug {
@@ -129,4 +123,14 @@ func Solve(w, h int, count map[Piece]int, debug bool) <-chan []Placement {
 		}
 	}()
 	return ch
+}
+
+func piecelist(count map[chess.Piece]int) []chess.Piece {
+	var ps = make([]chess.Piece, 0, len(count))
+	for p, n := range count {
+		for i := 0; i < n; i++ {
+			ps = append(ps, p)
+		}
+	}
+	return ps
 }

@@ -30,13 +30,3 @@ func (p Position) Distance(o Position) (int, int) {
 func (p Position) Before(o Position) bool {
 	return p.Y < o.Y || p.Y == o.Y && p.X < o.X
 }
-
-func PieceList(count map[Piece]int) []Piece {
-	var ps = make([]Piece, 0, len(count))
-	for p, n := range count {
-		for i := 0; i < n; i++ {
-			ps = append(ps, p)
-		}
-	}
-	return ps
-}
