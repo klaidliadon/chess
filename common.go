@@ -1,11 +1,17 @@
 package checkmate
 
+import "fmt"
+
 // canMove use the delta in x and y axis and return reachability
 type canMove func(int, int) bool
 
 // Position is a square in the board
 type Position struct {
 	X, Y int
+}
+
+func (p Position) String() string {
+	return fmt.Sprintf("[%v,%v]", p.X, p.Y)
 }
 
 // Distance returns the absolute distance from another position

@@ -2,7 +2,6 @@ package checkmate
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"os"
 
@@ -25,24 +24,7 @@ type State struct {
 }
 
 func (s State) String() string {
-	var cache = make(map[Position]string, s.common.Board.SquareCount()-len(s.common.Board.placements)-len(s.squares))
-	for _, p := range s.common.Board.placements {
-		cache[p.Position] = p.Piece.Simbol()
-	}
-
-	b := bytes.NewBuffer(nil)
-	fmt.Fprintln(b, s.Combination())
-	for y := 0; y < s.common.Board.Height; y++ {
-		for x := 0; x < s.common.Board.Width; x++ {
-			var s = "☐"
-			if v, ok := cache[Position{x, y}]; ok {
-				s = v
-			}
-			fmt.Fprintf(b, "%1s", s)
-		}
-		b.WriteRune('\n')
-	}
-	r := b.String()
+	r := s.common.Board.String()
 	if s.IsComplete() {
 		r = color.GreenString(r)
 	}

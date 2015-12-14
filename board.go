@@ -1,5 +1,10 @@
 package checkmate
 
+import (
+	"bytes"
+	"fmt"
+)
+
 var (
 	errEmpty   = "cannot remove last piece: empty board"
 	errInvalid = "cannot place piece: invalid position"
@@ -30,6 +35,27 @@ func NewBoard(w, h int) *Board {
 type Board struct {
 	Size
 	placements PlacementStack
+}
+
+func (b *Board) String() string {
+	var cache = make(map[Position]string, b.SquareCount()-len(b.placements))
+	for _, p := range b.placements {
+		cache[p.Position] = p.Piece.Simbol()
+	}
+
+	w := bytes.NewBuffer(nil)
+	for y := 0; y < b.Height; y++ {
+		for x := 0; x < b.Width; x++ {
+			var s = "☐"
+			if v, ok := cache[Position{x, y}]; ok {
+				s = v
+			}
+			fmt.Fprintf(w, "%-2s", s)
+		}
+		w.WriteString("\n")
+	}
+	w.WriteString(b.placements.String())
+	return w.String()
 }
 
 // Positions returns all the positions of the board

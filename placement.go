@@ -1,6 +1,7 @@
 package checkmate
 
 import (
+	"bytes"
 	"fmt"
 )
 
@@ -48,4 +49,21 @@ func (p PlacementStack) Positions() []Position {
 		r[i] = v.Position
 	}
 	return r
+}
+
+func (p PlacementStack) String() string {
+	w := bytes.NewBuffer(nil)
+	var last Piece
+	for i, v := range p {
+		if last != v.Piece {
+			if i > 0 {
+				fmt.Fprint(w, "\n")
+			}
+			last = v.Piece
+			fmt.Fprintf(w, "%s ", last.Simbol())
+		}
+		fmt.Fprintf(w, "%v", v.Position)
+
+	}
+	return w.String()
 }
