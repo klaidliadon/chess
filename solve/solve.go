@@ -1,4 +1,4 @@
-package checkmate
+package solve
 
 import (
 	"bufio"
@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	. "github.com/klaidliadon/chess"
 )
 
 type commonState struct {
@@ -59,7 +60,7 @@ func (s *State) RemoveSquare(p Position) {
 
 func (s *State) Invalid() bool {
 	return !s.common.Board.Free(s.Position()) ||
-		s.Placement().Menaces(s.common.Board.placements...)
+		s.common.Board.IsSafe(s.Placement())
 }
 
 func (s *State) AddCurrent() {

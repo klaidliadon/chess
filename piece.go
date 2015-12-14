@@ -1,4 +1,4 @@
-package checkmate
+package chess
 
 // Piece is a chess piece type
 type Piece int

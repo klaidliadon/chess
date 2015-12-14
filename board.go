@@ -1,4 +1,4 @@
-package checkmate
+package chess
 
 import (
 	"bytes"
@@ -77,6 +77,11 @@ func (b *Board) Free(pos Position) bool {
 		}
 	}
 	return true
+}
+
+// Free tells if a square is occupied
+func (b *Board) IsSafe(p Placement) bool {
+	return p.Menaces(b.placements...)
 }
 
 // Place puts a piece in a square

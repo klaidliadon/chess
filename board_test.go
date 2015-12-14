@@ -1,4 +1,4 @@
-package checkmate
+package chess
 
 import (
 	. "gopkg.in/check.v1"

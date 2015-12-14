@@ -1,4 +1,4 @@
-package checkmate
+package chess
 
 import (
 	"bytes"
