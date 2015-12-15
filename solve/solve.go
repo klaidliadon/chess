@@ -4,15 +4,24 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/fatih/color"
 	"github.com/klaidliadon/chess"
 )
 
+type sortPiece []chess.Piece
+
+func (s sortPiece) Len() int           { return len(s) }
+func (s sortPiece) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s sortPiece) Less(i, j int) bool { return s[i] > s[j] }
+
 func NewCheckmate(w, h int, pieces chess.PieceCount) *Checkmate {
+	var list = pieces.List()
+	sort.Sort(sortPiece(list))
 	return &Checkmate{
 		Board:  chess.NewBoard(w, h),
-		Pieces: pieces.List(),
+		Pieces: list,
 	}
 }
 
@@ -21,24 +30,47 @@ type Checkmate struct {
 	*state
 	Board  *chess.Board
 	Pieces []chess.Piece
-	Length int
-	result chan []chess.Placement
+}
+
+func (c *Checkmate) reset() {
+	c.state = &state{squares: c.Board.Positions()}
+}
+
+func (c *Checkmate) Count() int {
+	c.reset()
+	i := 0
+	for c.next() {
+		if c.isComplete() {
+			c.prev()
+			i++
+		}
+	}
+	return i
 }
 
 func (c *Checkmate) Solve(debug bool) chan []chess.Placement {
-	c.state = &state{squares: c.Board.Positions()}
-	c.result = make(chan []chess.Placement)
-	reader := bufio.NewReader(os.Stdin)
+	c.reset()
+	ch := make(chan []chess.Placement)
+	var reader interface {
+		ReadString(byte) (string, error)
+	}
+	if debug {
+		reader = bufio.NewReader(os.Stdin)
+	}
 	go func() {
-		defer close(c.result)
-		for c.Next() {
-			if debug {
+		defer close(ch)
+		for c.next() {
+			if reader != nil {
 				fmt.Println(c)
 				reader.ReadString('\n')
 			}
+			if c.isComplete() {
+				ch <- c.Board.Combination()
+				c.prev()
+			}
 		}
 	}()
-	return c.result
+	return ch
 }
 
 func (c *Checkmate) String() string {
@@ -49,68 +81,52 @@ func (c *Checkmate) String() string {
 	return r
 }
 
-func (s *Checkmate) isComplete() bool       { return s.piecesIndex == len(s.Pieces) }
-func (s *Checkmate) currPiece() chess.Piece { return s.Pieces[s.piecesIndex] }
-func (s *Checkmate) prevPiece() chess.Piece { return s.Pieces[s.piecesIndex-1] }
-func (s *Checkmate) nextPiece() chess.Piece { return s.Pieces[s.piecesIndex+1] }
+func (c *Checkmate) isComplete() bool       { return c.piecesIndex == len(c.Pieces) }
+func (c *Checkmate) currPiece() chess.Piece { return c.Pieces[c.piecesIndex] }
+func (c *Checkmate) prevPiece() chess.Piece { return c.Pieces[c.piecesIndex-1] }
+func (c *Checkmate) nextPiece() chess.Piece { return c.Pieces[c.piecesIndex+1] }
 
-func (s *Checkmate) RemoveSquare(p chess.Position) {
-	var index = -1
-	for i, v := range s.squares {
-		if v != p {
-			continue
-		}
-		index = i
-		break
-	}
-	if index == -1 {
-		return
-	}
-	s.squares = append(s.squares[:index], s.squares[index+1:]...)
-}
-
-func (s *Checkmate) invalid() bool {
-	pos := s.position()
-	return !s.Board.Free(pos) || s.Board.IsSafe(chess.Placement{
-		Piece: s.currPiece(), Position: pos,
+func (c *Checkmate) invalid() bool {
+	pos := c.position()
+	return !c.Board.Free(pos) || c.Board.IsSafe(chess.Placement{
+		Piece: c.currPiece(), Position: pos,
 	})
 }
 
-func (s *Checkmate) Next() bool {
-	if s.isComplete() {
-		s.result <- s.Board.Combination()
-		return s.Previous()
+func (c *Checkmate) next() bool {
+	if c.isComplete() {
+		return true
 	}
-	if !s.isFirst() && s.currPiece() == s.prevPiece() {
-		prev := s.previous.position()
-		for s.validIndex() && s.position().Before(prev) {
-			s.squareIndex++
+	if !c.isFirst() && c.currPiece() == c.prevPiece() {
+		prev := c.previous.position()
+		for c.validIndex() && c.position().Before(prev) {
+			c.squareIndex++
 		}
 	}
-	for s.squareIndex < len(s.squares) {
-		p := chess.Placement{Position: s.position(), Piece: s.currPiece()}
-		if s.invalid() {
-			s.squareIndex++
+	for c.squareIndex < len(c.squares) {
+		p := chess.Placement{Position: c.position(), Piece: c.currPiece()}
+		if c.invalid() {
+			c.squareIndex++
 			continue
 		}
-		s.Board.Place(p)
-		safe, _ := p.Split(s.squares)
-		s.state = &state{
-			previous:    s.state,
+		c.Board.Place(p)
+		safe, _ := p.Split(c.squares)
+		c.state = &state{
+			previous:    c.state,
 			squares:     safe,
-			piecesIndex: s.piecesIndex + 1,
+			piecesIndex: c.piecesIndex + 1,
 		}
 		return true
 	}
-	return s.Previous()
+	return c.prev()
 }
 
-func (s *Checkmate) Previous() bool {
-	if s.previous == nil {
+func (c *Checkmate) prev() bool {
+	if c.previous == nil {
 		return false
 	}
-	s.Board.RemoveLast()
-	s.previous.squareIndex++
-	s.state = s.previous
+	c.Board.RemoveLast()
+	c.previous.squareIndex++
+	c.state = c.previous
 	return true
 }

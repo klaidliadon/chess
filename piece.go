@@ -8,8 +8,8 @@ type Piece int
 // List of all pieces
 const (
 	_ Piece = iota
-	King
 	Knight
+	King
 	Bishop
 	Rook
 	Queen

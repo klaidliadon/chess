@@ -52,9 +52,15 @@ func (b *Board) String() string {
 			}
 			fmt.Fprintf(w, "%-2s", s)
 		}
-		w.WriteString("\n")
+		if y != b.Height-1 {
+			w.WriteRune('\n')
+		}
 	}
-	w.WriteString(b.placements.String())
+	s := b.placements.String()
+	if s != "" {
+		w.WriteRune('\n')
+	}
+	w.WriteString(s)
 	return w.String()
 }
 

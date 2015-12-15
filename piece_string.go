@@ -4,9 +4,9 @@ package chess
 
 import "fmt"
 
-const _Piece_name = "KingKnightBishopRookQueen"
+const _Piece_name = "KnightKingBishopRookQueen"
 
-var _Piece_index = [...]uint8{0, 4, 10, 16, 20, 25}
+var _Piece_index = [...]uint8{0, 6, 10, 16, 20, 25}
 
 func (i Piece) String() string {
 	i -= 1
