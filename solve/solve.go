@@ -9,42 +9,52 @@ import (
 	"github.com/klaidliadon/chess"
 )
 
-type common struct {
+func NewCheckmate(w, h int, pieces chess.PieceCount) *Checkmate {
+	return &Checkmate{
+		Board:  chess.NewBoard(w, h),
+		Pieces: pieces.List(),
+	}
+}
+
+// Checkmate solves the extended n queen problem (any piece excluding pawns, any board size)
+type Checkmate struct {
+	*state
 	Board  *chess.Board
 	Pieces []chess.Piece
 	Length int
-	Result chan []chess.Placement
+	result chan []chess.Placement
 }
 
-type State struct {
-	common
-	previous    *State
-	squares     []chess.Position
-	piecesIndex int
-	squareIndex int
+func (c *Checkmate) Solve(debug bool) chan []chess.Placement {
+	c.state = &state{squares: c.Board.Positions()}
+	c.result = make(chan []chess.Placement)
+	reader := bufio.NewReader(os.Stdin)
+	go func() {
+		defer close(c.result)
+		for c.Next() {
+			if debug {
+				fmt.Println(c)
+				reader.ReadString('\n')
+			}
+		}
+	}()
+	return c.result
 }
 
-func (s State) String() string {
-	r := s.Board.String()
-	if s.IsComplete() {
+func (c *Checkmate) String() string {
+	r := c.Board.String()
+	if c.isComplete() {
 		r = color.GreenString(r)
 	}
 	return r
 }
 
-func (s *State) ValidIndex() bool         { return s.squareIndex < len(s.squares) }
-func (s *State) IsFirst() bool            { return s.piecesIndex == 0 }
-func (s *State) IsComplete() bool         { return s.piecesIndex == s.Length }
-func (s *State) Piece() chess.Piece       { return s.Pieces[s.piecesIndex] }
-func (s *State) PrevPiece() chess.Piece   { return s.Pieces[s.piecesIndex-1] }
-func (s *State) NextPiece() chess.Piece   { return s.Pieces[s.piecesIndex+1] }
-func (s *State) Position() chess.Position { return s.squares[s.squareIndex] }
+func (s *Checkmate) isComplete() bool       { return s.piecesIndex == len(s.Pieces) }
+func (s *Checkmate) currPiece() chess.Piece { return s.Pieces[s.piecesIndex] }
+func (s *Checkmate) prevPiece() chess.Piece { return s.Pieces[s.piecesIndex-1] }
+func (s *Checkmate) nextPiece() chess.Piece { return s.Pieces[s.piecesIndex+1] }
 
-func (s *State) Placement() chess.Placement {
-	return chess.Placement{Piece: s.Piece(), Position: s.Position()}
-}
-
-func (s *State) RemoveSquare(p chess.Position) {
+func (s *Checkmate) RemoveSquare(p chess.Position) {
 	var index = -1
 	for i, v := range s.squares {
 		if v != p {
@@ -59,78 +69,48 @@ func (s *State) RemoveSquare(p chess.Position) {
 	s.squares = append(s.squares[:index], s.squares[index+1:]...)
 }
 
-func (s *State) Invalid() bool {
-	return !s.Board.Free(s.Position()) || s.Board.IsSafe(s.Placement())
+func (s *Checkmate) invalid() bool {
+	pos := s.position()
+	return !s.Board.Free(pos) || s.Board.IsSafe(chess.Placement{
+		Piece: s.currPiece(), Position: pos,
+	})
 }
 
-func (s *State) Next() *State {
-	if s.IsComplete() {
-		s.Result <- s.Board.Combination()
+func (s *Checkmate) Next() bool {
+	if s.isComplete() {
+		s.result <- s.Board.Combination()
 		return s.Previous()
 	}
-	if !s.IsFirst() && s.Piece() == s.PrevPiece() {
-		prev := s.previous.Position()
-		for s.ValidIndex() && s.Position().Before(prev) {
+	if !s.isFirst() && s.currPiece() == s.prevPiece() {
+		prev := s.previous.position()
+		for s.validIndex() && s.position().Before(prev) {
 			s.squareIndex++
 		}
 	}
 	for s.squareIndex < len(s.squares) {
-		p := s.Placement()
-		if s.Invalid() {
+		p := chess.Placement{Position: s.position(), Piece: s.currPiece()}
+		if s.invalid() {
 			s.squareIndex++
 			continue
 		}
 		s.Board.Place(p)
 		safe, _ := p.Split(s.squares)
-		return &State{
-			common:      s.common,
-			previous:    s,
+		s.state = &state{
+			previous:    s.state,
 			squares:     safe,
 			piecesIndex: s.piecesIndex + 1,
 		}
+		return true
 	}
 	return s.Previous()
 }
 
-func (s *State) Previous() *State {
+func (s *Checkmate) Previous() bool {
 	if s.previous == nil {
-		return nil
+		return false
 	}
 	s.Board.RemoveLast()
 	s.previous.squareIndex++
-	return s.previous
-}
-
-func Solve(w, h int, count map[chess.Piece]int, debug bool) <-chan []chess.Placement {
-	ch := make(chan []chess.Placement)
-	reader := bufio.NewReader(os.Stdin)
-	go func() {
-		defer close(ch)
-		l := piecelist(count)
-		s := &State{common: common{
-			Board:  chess.NewBoard(w, h),
-			Pieces: l,
-			Result: ch,
-			Length: len(l),
-		}}
-		s.squares = s.Board.Positions()
-		for s != nil {
-			s = s.Next()
-			if debug {
-				fmt.Println(s)
-				reader.ReadString('\n')
-			}
-		}
-	}()
-	return ch
-}
-
-func piecelist(count map[chess.Piece]int) []chess.Piece {
-	var ps = make([]chess.Piece, 0, len(count))
-	for p, n := range count {
-		for i := 0; i < n; i++ {
-			ps = append(ps, p)
-		}
-	}
-	return ps
+	s.state = s.previous
+	return true
 }

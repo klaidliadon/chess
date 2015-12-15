@@ -30,3 +30,15 @@ func (p Position) Distance(o Position) (int, int) {
 func (p Position) Before(o Position) bool {
 	return p.Y < o.Y || p.Y == o.Y && p.X < o.X
 }
+
+type PieceCount map[Piece]int
+
+func (p PieceCount) List() []Piece {
+	var ps = make([]Piece, 0, len(p))
+	for k, n := range p {
+		for i := 0; i < n; i++ {
+			ps = append(ps, k)
+		}
+	}
+	return ps
+}
