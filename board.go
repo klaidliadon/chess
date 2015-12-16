@@ -38,19 +38,19 @@ type Board struct {
 }
 
 func (b *Board) String() string {
-	var cache = make(map[Position]string, b.SquareCount()-len(b.placements))
+	var cache = make(map[Position]rune, b.SquareCount()-len(b.placements))
 	for _, p := range b.placements {
-		cache[p.Position] = p.Piece.Simbol()
+		cache[p.Position] = p.Piece.Rune()
 	}
 
 	w := bytes.NewBuffer(nil)
 	for y := 0; y < b.Height; y++ {
 		for x := 0; x < b.Width; x++ {
-			var s = "☐"
+			var r = '☐'
 			if v, ok := cache[Position{x, y}]; ok {
-				s = v
+				r = v
 			}
-			fmt.Fprintf(w, "%-2s", s)
+			fmt.Fprintf(w, " %c", r)
 		}
 		if y != b.Height-1 {
 			w.WriteRune('\n')

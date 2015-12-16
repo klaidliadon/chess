@@ -23,7 +23,7 @@ func (p Placement) Split(pos []Position) (safe, unsafe []Position) {
 
 // String returns the format "piece position"
 func (p Placement) String() string {
-	return fmt.Sprintf("%s {%d,%d}", p.Piece.Simbol(), p.Position.X, p.Position.Y)
+	return fmt.Sprintf("%c {%d,%d}", p.Piece.Rune(), p.Position.X, p.Position.Y)
 }
 
 // PlacementStack is a stack of Placements
@@ -60,7 +60,7 @@ func (p PlacementStack) String() string {
 				fmt.Fprint(w, "\n")
 			}
 			last = v.Piece
-			fmt.Fprintf(w, "%s ", last.Simbol())
+			fmt.Fprintf(w, "%c ", last.Rune())
 		}
 		fmt.Fprintf(w, "%v", v.Position)
 

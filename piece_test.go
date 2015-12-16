@@ -66,7 +66,7 @@ func (s *CheckmateSuite) TestPieces(c *C) {
 
 			}
 			splitChecker[mine] = v
-			c.Logf("%v %v - %v %s", piece.Simbol(), mine, their, r)
+			c.Logf("%c %v - %v %s", piece.Rune(), mine, their, r)
 			c.Assert(piece.Menaces(mine, their), Equals, menace)
 		}
 		for mine, theirs := range splitChecker {

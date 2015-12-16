@@ -2,9 +2,6 @@ package chess
 
 import "fmt"
 
-// canMove use the delta in x and y axis and return reachability
-type canMove func(int, int) bool
-
 // Position is a square in the board
 type Position struct {
 	X, Y int

@@ -15,6 +15,9 @@ const (
 	Queen
 )
 
+// canMove use the delta in x and y axis and return reachability
+type canMove func(int, int) bool
+
 var menaces = map[string]canMove{
 	"same":       func(x, y int) bool { return x == 0 && y == 0 },
 	"adjacent":   func(x, y int) bool { return x < 2 && y < 2 },
@@ -23,20 +26,21 @@ var menaces = map[string]canMove{
 	"orthogonal": func(x, y int) bool { return x == 0 || y == 0 },
 }
 
-func (p Piece) Simbol() string {
+// Returns a rune representing the Piece
+func (p Piece) Rune() rune {
 	switch p {
 	case King:
-		return "♚"
+		return '♚'
 	case Queen:
-		return "♛"
+		return '♛'
 	case Rook:
-		return "♜"
+		return '♜'
 	case Bishop:
-		return "♝"
+		return '♝'
 	case Knight:
-		return "♞"
+		return '♞'
 	}
-	return "?"
+	return '?'
 }
 
 // Menaces tells if the piece is menacing any of the positions
